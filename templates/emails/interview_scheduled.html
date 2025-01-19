@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interview Scheduled</title>
+</head>
+<body>
+    <h2>Interview Scheduled for {{ opportunity.title }}</h2>
+    <p>Dear {{ user.name }},</p>
+    <p>Your interview has been scheduled for {{ interview_date }}.</p>
+    <p>Details:</p>
+    <ul>
+        <li>Opportunity: {{ opportunity.title }}</li>
+        <li>Organization: {{ opportunity.organization }}</li>
+        <li>Date: {{ interview_date }}</li>
+    </ul>
+    <p>Please prepare accordingly.</p>
+</body>
+</html> 
