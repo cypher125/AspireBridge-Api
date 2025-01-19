@@ -91,12 +91,36 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         tags=['Users'],
-        description='Get current user profile'
+        description='Get or update current user profile'
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get', 'patch'])
     def me(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
+        if request.method == 'GET':
+            serializer = self.get_serializer(request.user)
+            return Response(serializer.data)
+        elif request.method == 'PATCH':
+            user = request.user
+            if 'profile_picture' in request.FILES:
+                # Handle file upload
+                file = request.FILES['profile_picture']
+                # Validate file type
+                if not file.content_type.startswith('image/'):
+                    return Response(
+                        {'error': 'Invalid file type. Only images are allowed.'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # Save the file
+                user.profile_picture = file
+                user.save()
+                user.calculate_completion_rate()
+                serializer = self.get_serializer(user)
+                return Response(serializer.data)
+            else:
+                # Handle regular field updates
+                serializer = self.get_serializer(user, data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+                return Response(serializer.data)
 
     @extend_schema(
         tags=['Users'],
@@ -137,19 +161,47 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserStatsSerializer(stats)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
-    def update_profile_picture(self, request, pk=None):
-        user = self.get_object()
+    @action(detail=False, methods=['post'])
+    def update_profile_picture(self, request):
+        """Upload or update user profile picture"""
         if 'profile_picture' not in request.FILES:
             return Response(
                 {'error': 'No image provided'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        user.profile_picture = request.FILES['profile_picture']
-        user.save()
-        user.calculate_completion_rate()
-        return Response(UserSerializer(user).data)
+        file = request.FILES['profile_picture']
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            return Response(
+                {'error': 'Invalid file type. Only images are allowed.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Validate file size (5MB)
+        if file.size > 5 * 1024 * 1024:
+            return Response(
+                {'error': 'File size too large. Maximum size is 5MB.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            request.user.profile_picture = file
+            request.user.save()
+            request.user.calculate_completion_rate()
+            
+            serializer = self.get_serializer(request.user)
+            response_data = serializer.data
+            print(f"Profile picture URL: {response_data.get('profile_picture')}")  # Debug log
+            return Response(response_data)
+            
+        except Exception as e:
+            print(f"Error saving profile picture: {str(e)}")  # Debug log
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def perform_update(self, serializer):
         instance = serializer.save()

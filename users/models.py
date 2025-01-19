@@ -2,6 +2,13 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
 
+def user_profile_picture_path(instance, filename):
+    # Get the file extension
+    ext = filename.split('.')[-1]
+    # Generate filename as user_id.extension
+    filename = f"{instance.id}.{ext}"
+    return f'profile_pictures/{filename}'
+
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
@@ -35,7 +42,7 @@ class User(AbstractUser):
     description = models.TextField(blank=True)
     organization_details = models.TextField(blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True)
+    profile_picture = models.ImageField(upload_to=user_profile_picture_path, blank=True)
     join_date = models.DateTimeField(auto_now_add=True)
     location = models.CharField(max_length=255, blank=True)
     completion_rate = models.IntegerField(default=0)
